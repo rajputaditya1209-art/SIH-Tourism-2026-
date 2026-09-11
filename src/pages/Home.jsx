@@ -1,9 +1,11 @@
+import { useRef } from 'react';
 import { ArrowRight, MapPinned, Sparkles, Users, Globe2, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
 import SectionTitle from '../components/SectionTitle';
 import { destinations } from '../data/destinations';
 import DestinationCard from '../components/DestinationCard';
+import UseInView from '../hooks/useInView';
 
 const steps = [
   'Tell us your preferences',
@@ -36,6 +38,9 @@ const features = [
 ];
 
 function Home() {
+  const featuresRef = UseInView();
+  const destinationsRef = UseInView();
+
   return (
     <div className="page-container">
       <Hero />
@@ -49,7 +54,7 @@ function Home() {
 
         <div className="steps-grid">
           {steps.map((step, index) => (
-            <div key={step} className="step-card">
+            <div key={step} className="step-card animate-on-scroll">
               <span className="step-number">0{index + 1}</span>
               <h3>{step}</h3>
             </div>
@@ -64,9 +69,13 @@ function Home() {
           subtitle="Our platform focuses on personalization, crowd awareness, and local economic upliftment."
         />
 
-        <div className="feature-grid">
-          {features.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="feature-card">
+        <div className="feature-grid" ref={featuresRef.ref}>
+          {features.map(({ icon: Icon, title, text }, index) => (
+            <div
+              key={title}
+              className={`feature-card animate-on-scroll ${featuresRef.isVisible ? 'visible' : ''}`}
+              style={{ transitionDelay: `${index * 0.1}s` }}
+            >
               <div className="feature-icon">
                 <Icon size={22} />
               </div>
@@ -81,21 +90,27 @@ function Home() {
         <div className="section-header-row">
           <SectionTitle
             eyebrow="Popular destinations"
-            title="Explore India’s Most Loved Destinations"
+            title="Explore India's Most Loved Destinations"
           />
           <Link to="/recommendations" className="text-link">
             See all <ArrowRight size={16} />
           </Link>
         </div>
 
-        <div className="destination-grid">
-          {destinations.slice(0, 6).map((destination) => (
-            <DestinationCard key={destination.id} destination={{ ...destination, matchPercent: destination.matchScore }} />
+        <div className="destination-grid" ref={destinationsRef.ref}>
+          {destinations.slice(0, 6).map((destination, index) => (
+            <div
+              key={destination.id}
+              className={`animate-on-scroll ${destinationsRef.isVisible ? 'visible' : ''}`}
+              style={{ transitionDelay: `${index * 0.1}s` }}
+            >
+              <DestinationCard destination={{ ...destination, matchPercent: destination.matchScore }} />
+            </div>
           ))}
         </div>
       </section>
 
-      <section className="content-section trust-strip">
+      <section className="content-section trust-strip animate-on-scroll">
         <div className="trust-item">
           <ShieldCheck size={20} />
           <span>Transparent crowd insight</span>

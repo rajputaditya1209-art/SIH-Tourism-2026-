@@ -1,13 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Sparkles, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DestinationCard from '../components/DestinationCard';
 import SectionTitle from '../components/SectionTitle';
 import { getRecommendationsApi } from '../services/api';
 import { getAlternativeDestination, getCrowdStatus } from '../utils/crowdEngine';
 import LoadingSpinner from '../components/LoadingSpinner';
+import UseInView from '../hooks/useInView';
+import { useToast } from '../hooks/useToast';
+
+const ALL_INTERESTS = ['Nature', 'History', 'Adventure', 'Food', 'Culture', 'Beaches', 'Wildlife', 'Spiritual'];
+
+function SkeletonCard() {
+  return (
+    <div className="skeleton skeleton-card">
+      <div style={{ height: '220px', borderRadius: '22px 22px 0 0' }} className="skeleton" />
+      <div style={{ padding: '20px 18px 18px' }}>
+        <div className="skeleton skeleton-text medium" />
+        <div className="skeleton skeleton-text short" />
+        <div className="skeleton skeleton-text" style={{ marginTop: '16px' }} />
+        <div className="skeleton skeleton-text medium" />
+      </div>
+    </div>
+  );
+}
 
 function Recommendations() {
+  const { addToast } = useToast();
   const [preferences, setPreferences] = useState({
     destination: 'Maharashtra',
     days: 3,
@@ -19,14 +38,26 @@ function Recommendations() {
   });
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const { ref, isVisible } = UseInView();
 
   useEffect(() => {
     const saved = localStorage.getItem('smartTourismPreferences');
-    const initial = saved ? JSON.parse(saved) : preferences;
-    setPreferences(initial);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setPreferences((current) => ({ ...current, ...parsed }));
+      } catch (error) {
+        console.error('Error reading saved trip preferences', error);
+      }
+    }
 
-    getRecommendationsApi(initial).then((result) => {
+    getRecommendationsApi(preferences).then((result) => {
       setDestinations(result);
+      setLoading(false);
+    }).catch(() => {
+      addToast('Failed to load recommendations', 'error');
       setLoading(false);
     });
   }, []);
@@ -42,6 +73,23 @@ function Recommendations() {
   );
 
   const crowdStatus = topDestination ? getCrowdStatus(topDestination) : 'LOW';
+
+  const filteredDestinations = useMemo(() => {
+    return destinations.filter((dest) => {
+      const matchesSearch = !searchQuery ||
+        dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        dest.state.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        dest.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesFilter = activeFilter === 'All' ||
+        dest.category === activeFilter ||
+        dest.tags?.includes(activeFilter);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [destinations, searchQuery, activeFilter]);
+
+  const categories = ['All', ...new Set(destinations.map(d => d.category))];
 
   return (
     <div className="page-container">
@@ -59,13 +107,39 @@ function Recommendations() {
         </div>
       )}
 
+      <div className="search-bar">
+        <Search className="search-icon" size={18} />
+        <input
+          type="text"
+          placeholder="Search destinations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search destinations"
+        />
+      </div>
+
+      <div className="filter-tags" role="group" aria-label="Filter by category">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            className={`filter-tag ${activeFilter === cat ? 'active' : ''}`}
+            onClick={() => setActiveFilter(cat)}
+            aria-pressed={activeFilter === cat}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <LoadingSpinner label="Finding smart recommendations..." />
+        <div className="destination-grid">
+          {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
       ) : (
         <>
           {topDestination && crowdStatus === 'HIGH' && altDestination && (
-            <div className="crowd-warning-box">
-              <div>
+            <div className="crowd-warning-box animate-on-scroll" ref={ref}>
+              <div className={isVisible ? 'visible' : ''}>
                 <AlertTriangle size={18} />
                 <span>{topDestination.name} is expected to be crowded.</span>
               </div>
@@ -86,16 +160,26 @@ function Recommendations() {
             </div>
           )}
 
-          <div className="destination-grid recommendation-grid">
-            {destinations.map((destination) => (
-              <DestinationCard key={destination.id} destination={destination} />
-            ))}
-          </div>
+          {filteredDestinations.length === 0 ? (
+            <div className="empty-state">
+              <Sparkles size={48} color="var(--muted)" />
+              <h3>No destinations found</h3>
+              <p>Try adjusting your search or filters</p>
+            </div>
+          ) : (
+            <div className="destination-grid recommendation-grid">
+              {filteredDestinations.map((destination, index) => (
+                <div key={destination.id} className={`animate-on-scroll ${isVisible ? 'visible' : ''}`} style={{ animationDelay: `${index * 0.1}s` }}>
+                  <DestinationCard destination={destination} />
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
-      <div className="cta-banner">
-        <div>
+      <div className="cta-banner animate-on-scroll" ref={ref}>
+        <div className={isVisible ? 'visible' : ''}>
           <Sparkles size={18} />
           <span>Want the best route for this trip?</span>
         </div>

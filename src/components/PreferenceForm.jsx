@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 
 const defaultForm = {
@@ -12,11 +11,10 @@ const defaultForm = {
   season: 'Winter',
 };
 
-function PreferenceForm({ initialValues = defaultForm }) {
+function PreferenceForm({ initialValues = defaultForm, onSave }) {
   const [form, setForm] = useState(initialValues);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
 
   const handleChange = (event) => {
     const { name, value, type } = event.target;
@@ -71,15 +69,7 @@ function PreferenceForm({ initialValues = defaultForm }) {
     }
 
     setIsSubmitting(true);
-
-    const payload = {
-      ...form,
-      interests: form.interests,
-    };
-
-    localStorage.setItem('smartTourismPreferences', JSON.stringify(payload));
-    navigate('/recommendations');
-
+    onSave?.(form);
     setTimeout(() => setIsSubmitting(false), 400);
   };
 
@@ -94,22 +84,24 @@ function PreferenceForm({ initialValues = defaultForm }) {
             value={form.destination}
             onChange={handleChange}
             placeholder="e.g. Maharashtra"
+            aria-describedby="destination-help"
           />
+          <span id="destination-help" className="field-hint">Enter a state or region in India</span>
         </label>
 
         <label>
           <span>Number of Days</span>
-          <input type="number" name="days" min="1" value={form.days} onChange={handleChange} />
+          <input type="number" name="days" min="1" max="30" value={form.days} onChange={handleChange} />
         </label>
 
         <label>
-          <span>Budget</span>
-          <input type="number" name="budget" min="0" value={form.budget} onChange={handleChange} />
+          <span>Budget (₹)</span>
+          <input type="number" name="budget" min="0" step="1000" value={form.budget} onChange={handleChange} />
         </label>
 
         <label>
           <span>Number of Travelers</span>
-          <input type="number" name="travelers" min="1" value={form.travelers} onChange={handleChange} />
+          <input type="number" name="travelers" min="1" max="20" value={form.travelers} onChange={handleChange} />
         </label>
 
         <label>
@@ -142,6 +134,7 @@ function PreferenceForm({ initialValues = defaultForm }) {
               type="button"
               className={`interest-chip ${form.interests?.includes(item) ? 'selected' : ''}`}
               onClick={() => handleInterestToggle(item)}
+              aria-pressed={form.interests?.includes(item)}
             >
               {item}
             </button>
@@ -149,7 +142,7 @@ function PreferenceForm({ initialValues = defaultForm }) {
         </div>
       </div>
 
-      {error && <div className="error-box">{error}</div>}
+      {error && <div className="error-box" role="alert">{error}</div>}
 
       <button type="submit" className="primary-btn form-submit" disabled={isSubmitting}>
         <Sparkles size={18} />

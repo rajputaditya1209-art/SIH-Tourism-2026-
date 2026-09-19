@@ -3,38 +3,59 @@ from typing import List, Optional
 
 class Preference(BaseModel):
     budget: float = Field(..., description="The maximum budget for the trip")
-    interests: List[str] = Field(..., description="List of interests, e.g., ['culture', 'food', 'nature']")
+    interests: List[str] = Field(..., description="List of interests")
     duration: int = Field(..., description="Duration of the trip in days")
-    destination: str = Field(..., description="The target destination city or country")
-    season: str = Field(..., description="Preferred travel season, e.g., 'Summer', 'Winter'")
-    travelType: str = Field(..., description="Type of travel, e.g., 'Adventure', 'Relaxation', 'Luxury'")
+    destination: str = Field(..., description="The target destination city or region")
+    season: str = Field(..., description="Preferred travel season")
+    travelType: str = Field(..., description="Type of travel, e.g. Family, Adventure")
+    travelers: int = Field(1, description="Number of travelers")
+
+    @property
+    def group_type(self) -> str:
+        if self.travelers == 1:
+            return "solo"
+        if self.travelType == "Family":
+            return "family"
+        if self.travelers == 2:
+            return "couple"
+        return "friends"
+
+    @property
+    def budget_level(self) -> str:
+        if self.budget <= 5000:
+            return "low"
+        if self.budget <= 15000:
+            return "medium"
+        return "high"
 
 class Destination(BaseModel):
-    name: str = Field(..., description="Name of the destination")
-    country: str = Field(..., description="Country of the destination")
-    description: Optional[str] = Field(None, description="A brief description of the destination")
+    id: str = Field(..., description="Stable slug id")
+    name: str
+    country: str
+    description: Optional[str] = None
+    region: Optional[str] = None
 
 class RecommendedDestination(Destination):
-    matchScore: float = Field(..., description="The match score of the destination (0-100)")
+    matchScore: float = Field(..., description="Match score 0-100")
 
 class Business(BaseModel):
-    id: int = Field(..., description="Unique identifier of the business")
-    destination_id: int = Field(..., description="ID of the destination where the business is located")
-    name: str = Field(..., description="Name of the business/attraction")
-    category: str = Field(..., description="Category of the business, e.g., 'Restaurant', 'Museum'")
-    rating: float = Field(..., description="Rating of the business")
-    crowd: Optional[str] = Field(None, description="Crowd level, e.g., 'HIGH', 'MEDIUM', 'LOW'")
-    address: Optional[str] = Field(None, description="Address of the business")
-    description: Optional[str] = Field(None, description="Description of the business")
+    id: int
+    destination_id: str
+    name: str
+    category: str
+    rating: float
+    crowd: Optional[str] = None
+    address: Optional[str] = None
+    description: Optional[str] = None
 
 class Itinerary(BaseModel):
-    destination: Destination = Field(..., description="The destination for the itinerary")
-    days: List[List[Business]] = Field(..., description="A list of days, each containing a list of businesses/activities to visit")
-    total_estimated_cost: float = Field(..., description="Total estimated cost of the itinerary")
+    destination: Destination
+    days: List[List[Business]]
+    total_estimated_cost: float
 
 class GenerateItineraryRequest(BaseModel):
-    destinationId: int = Field(..., description="ID of the destination")
-    preferences: Preference = Field(..., description="User's travel preferences")
+    destinationId: str
+    preferences: Preference
 
 class Error(BaseModel):
-    detail: str = Field(..., description="Detailed error message")
+    detail: str

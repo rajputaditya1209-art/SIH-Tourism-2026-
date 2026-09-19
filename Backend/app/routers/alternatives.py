@@ -1,20 +1,18 @@
-# app/routers/alternatives.py
 from fastapi import APIRouter, HTTPException
 from app.services.ai_integration import ai_service, AIIntegrationError
+from app.ai_module.crowd_prediction import destinations
 
 router = APIRouter()
 
-@router.get("/alternatives/{id}")
-async def get_alternatives(id: str):
-    try:
-        # Get alternative destination IDs from AI service
-        alt_ids = await ai_service.get_alternatives(id)
+def _full_destination(alt_id: str):
+    match = next((d for d in destinations if d["id"] == alt_id), None)
+    return match or {"id": alt_id, "name": alt_id, "country": "", "description": None, "region": None}
 
-        return {
-            "id": id,
-            "alternatives": alt_ids
-        }
+@router.get("/alternatives/{id}")
+async def get_alternatives_route(id: str):
+    try:
+        alts = await ai_service.get_alternatives(id)
+        alternative = _full_destination(alts[0]["id"]) if alts else None
+        return {"destinationId": id, "alternative": alternative}
     except AIIntegrationError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))

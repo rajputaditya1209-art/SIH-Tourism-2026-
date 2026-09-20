@@ -1,15 +1,13 @@
-# app/routers/itinerary.py
 from fastapi import APIRouter, HTTPException
-from app.models.schemas import Preference, Itinerary, GenerateItineraryRequest
-from app.services.itinerary_generator import itinerary_generator
+from app.services.ai_integration import ai_service, AIIntegrationError
+from app.models.schemas import GenerateItineraryRequest
 
 router = APIRouter()
 
-@router.post("/generate-itinerary", response_model=Itinerary)
-async def generate_itinerary(request: GenerateItineraryRequest):
+@router.post("/itinerary")
+async def generate_itinerary_route(request: GenerateItineraryRequest):
     try:
-        return itinerary_generator.generate(request.destinationId, request.preferences)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        itinerary_data = await ai_service.generate_itinerary(request)
+        return itinerary_data
+    except AIIntegrationError as e:
+        raise HTTPException(status_code=500, detail=str(e))

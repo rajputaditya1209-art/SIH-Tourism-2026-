@@ -1,10 +1,13 @@
 import asyncio
-import json
-import os
 import logging
 from typing import List, Dict, Any
 
+# Core AI logic imports
 from app.ai_module.crowd_prediction import predict_crowd, get_alternatives, destinations
+from app.ai_module.itinerary_generator import generate_itinerary
+
+# Schema import required for the itinerary request
+from app.models.schemas import GenerateItineraryRequest
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,45 @@ class AIIntegrationService:
             raise
         except Exception as e:
             logger.exception("Get alternatives failed")
+            raise AIIntegrationError(str(e))
+
+    async def generate_itinerary(self, req: GenerateItineraryRequest) -> dict:
+        try:
+            prefs = {
+                "days": req.preferences.duration,
+                "budget": req.preferences.budget,
+                "travelers": req.preferences.travelers,
+                "group_type": req.preferences.group_type,
+                "interests": req.preferences.interests
+            }
+            
+            # Executed in a separate thread to prevent the Gemini API network call from blocking the FastAPI event loop
+            result = await asyncio.to_thread(generate_itinerary, prefs, destinations)
+            
+            if "error" in result:
+                raise AIIntegrationError(result["error"])
+            
+            flat_days = []
+            for day_data in result.get("days", []):
+                day_num = day_data.get("day", 1)
+                for act in day_data.get("activities", []):
+                    flat_days.append({
+                        "day": day_num,
+                        "time": act.get("time", ""),
+                        "activity": act.get("activity", ""),
+                        "cost": act.get("cost", 0),
+                        "location": act.get("location", "")
+                    })
+            
+            return {
+                "destination": req.preferences.destination,
+                "summary": result.get("summary", {}),
+                "days": flat_days
+            }
+        except AIIntegrationError:
+            raise
+        except Exception as e:
+            logger.exception("Itinerary generation failed")
             raise AIIntegrationError(str(e))
 
 ai_service = AIIntegrationService()
